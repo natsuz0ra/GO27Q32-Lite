@@ -53,7 +53,7 @@ Avoid letting GCC, OSD Sidekick, and this app automatically adjust the same moni
 
 ## Data and updates
 
-Settings are stored at `%LOCALAPPDATA%\GO27Q32LiteFlutter\settings.json`, with a `.bak` backup. Version 1.0.0 keeps the existing location. Uninstallation preserves settings. Export your configuration before moving to another computer.
+Settings are stored at `%LOCALAPPDATA%\GO27Q32Lite\settings.json`, with a `.bak` backup. If the new location has no settings, the first load validates and copies settings from the legacy `GO27Q32LiteFlutter` directory, keeping the original files. Existing settings at the new location are never overwritten. Uninstallation preserves settings. Export your configuration before moving to another computer.
 
 Update checks run only when requested in Settings. They query this repository's public GitHub Release API, without sending monitor details, profiles, or process lists. Updates are not downloaded or installed automatically. Versions use SemVer precedence; build metadata is ignored, and equal or older releases never trigger an update notice.
 

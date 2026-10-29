@@ -322,8 +322,7 @@ class _GoAppState extends State<GoApp>
         'PASS: tray height fits measured content including fixed bottom inset',
       );
       final savedProfiles = model!.settings['Profiles'];
-      model!.settings['Profiles'] = <dynamic>[];
-      model!.notifyListeners();
+      model!.setDemoProfiles(<dynamic>[]);
       await Future<void>.delayed(const Duration(milliseconds: 350));
       final emptySize = await windowManager.getSize();
       if (!heightCapped && emptySize.height >= compact.height - 10) {
@@ -332,8 +331,7 @@ class _GoAppState extends State<GoApp>
       checks.add(
         'PASS: empty quick-profile tray shrinks without a blank footer',
       );
-      model!.settings['Profiles'] = savedProfiles;
-      model!.notifyListeners();
+      model!.setDemoProfiles(savedProfiles as List<dynamic>);
       await Future<void>.delayed(const Duration(milliseconds: 350));
       if ((!WidgetsBinding
                   .instance

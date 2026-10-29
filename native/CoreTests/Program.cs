@@ -112,6 +112,26 @@ try
     Check(rejected, "禁止配置自动切换输入源");
 }
 finally { foreach (string file in new[] { path, path + ".bak", path + ".tmp" }) if (File.Exists(file)) File.Delete(file); }
+var migrationRoot = Path.Combine(Path.GetTempPath(), "go27q32-migration-" + Guid.NewGuid().ToString("N"));
+try
+{
+    var previousPath = Path.Combine(migrationRoot, "old", "settings.json");
+    var destinationPath = Path.Combine(migrationRoot, "new", "settings.json");
+    var previous = new SettingsStore(previousPath); previous.Save(s); previous.Save(s);
+    var original = File.ReadAllText(previousPath);
+    var migrated = new SettingsStore(destinationPath, previousPath);
+    Check(!File.Exists(destinationPath), "构造配置仓库不触发迁移，演示模式不写用户目录");
+    Check(migrated.Load().Profiles.Count == s.Profiles.Count && File.ReadAllText(destinationPath) == original, "旧目录首次读取迁移到新目录，配置内容完整保留");
+    Check(File.ReadAllText(previousPath) == original && File.Exists(destinationPath + ".bak"), "自动迁移保留原文件及备份");
+    var preferred = migrated.Load(); preferred.Language = "en"; migrated.Save(preferred);
+    Check(new SettingsStore(destinationPath, previousPath).Load().Language == "en", "已有新目录配置优先，升级不覆盖现有偏好");
+    File.WriteAllText(previousPath, "{\"Version\":999}");
+    bool rejectedLegacy = false;
+    var invalidDestination = Path.Combine(migrationRoot, "invalid", "settings.json");
+    try { new SettingsStore(invalidDestination, previousPath).Load(); } catch (InvalidDataException) { rejectedLegacy = true; }
+    Check(rejectedLegacy && !File.Exists(invalidDestination), "旧配置未通过验证时不创建迁移目标");
+}
+finally { if (Directory.Exists(migrationRoot)) Directory.Delete(migrationRoot, true); }
 if (OperatingSystem.IsWindows())
 {
     Check(ProcessSnapshot.ImagePath(Environment.ProcessId).Equals(Environment.ProcessPath, StringComparison.OrdinalIgnoreCase), "有限进程权限查询实际运行路径，不枚举模块");

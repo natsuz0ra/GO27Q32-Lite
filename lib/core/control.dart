@@ -222,6 +222,13 @@ class ControlModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Used by the native demo checks; never changes real user preferences.
+  void setDemoProfiles(List<dynamic> profiles) {
+    if (!demo) throw StateError('Demo profiles require demo mode');
+    settings['Profiles'] = profiles;
+    notifyListeners();
+  }
+
   void stage(String id, int v) {
     if (blocked(id) != null) return;
     pending[id] = v;

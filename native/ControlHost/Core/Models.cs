@@ -146,10 +146,35 @@ public static class RuleResolver
 public sealed class SettingsStore
 {
     public string Path { get; }
+    private readonly string? legacyPath;
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
-    public SettingsStore(string? path = null) => Path = path ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GO27Q32Lite", "settings.json");
+    public SettingsStore(string? path = null, string? legacyPath = null)
+    {
+        var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        Path = path ?? System.IO.Path.Combine(root, "GO27Q32Lite", "settings.json");
+        this.legacyPath = legacyPath ?? (path is null ? System.IO.Path.Combine(root, "GO27Q32LiteFlutter", "settings.json") : null);
+    }
+    private void MigrateLegacy()
+    {
+        // Run only when loading real preferences, never when constructing the demo host.
+        // An existing destination always wins; do not replace another installation's data.
+        if (File.Exists(Path) || legacyPath is null || !File.Exists(legacyPath)) return;
+        string content = File.ReadAllText(legacyPath);
+        Validate(JsonSerializer.Deserialize<Settings>(content, Json) ?? throw new InvalidDataException("配置为空"));
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
+        string temp = Path + ".migration-" + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            File.WriteAllText(temp, content);
+            File.Move(temp, Path); // No overwrite: preserve a destination created concurrently.
+            if (File.Exists(legacyPath + ".bak") && !File.Exists(Path + ".bak"))
+                File.Copy(legacyPath + ".bak", Path + ".bak");
+        }
+        finally { if (File.Exists(temp)) File.Delete(temp); }
+    }
     public Settings Load()
     {
+        MigrateLegacy();
         if (!File.Exists(Path)) return new Settings();
         string content = File.ReadAllText(Path);
         using var document = JsonDocument.Parse(content);

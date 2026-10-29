@@ -23,7 +23,7 @@ await host.Shutdown();
 sealed class ControlHost(bool demo) : IDisposable
 {
     readonly MonitorService service = new();
-    readonly SettingsStore store = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GO27Q32LiteFlutter", "settings.json"));
+    readonly SettingsStore store = new();
     Settings settings = new();
     AutoController? automation;
     Dictionary<string, VcpValue> values = [];
