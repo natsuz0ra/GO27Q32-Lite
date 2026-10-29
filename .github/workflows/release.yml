@@ -70,6 +70,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" --verify-tag --draft --title "GO27Q32 Lite $RELEASE_TAG" --notes-file installer/release-notes.md
-          gh release upload "$RELEASE_TAG" release-assets/*
+          if gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft' > release-state.txt 2>/dev/null; then
+            if [ "$(cat release-state.txt)" = "false" ]; then
+              echo 'Release is already published; preserving existing assets.'
+              exit 0
+            fi
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "GO27Q32 Lite $RELEASE_TAG" --notes-file installer/release-notes.md
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
           gh release edit "$RELEASE_TAG" --draft=false --latest
