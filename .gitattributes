@@ -1,0 +1,11 @@
+* text=auto
+*.dart text eol=lf
+*.cs text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ps1 text eol=lf
+assets/fonts/LICENSE.txt -whitespace
+installer/languages/ChineseSimplified.isl -whitespace
