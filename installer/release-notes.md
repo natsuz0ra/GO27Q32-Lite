@@ -1,25 +1,15 @@
-GO27Q32 Lite 1.0.5，为技嘉 GO27Q32 提供画面调节、Windows HDR、应用自动配置、配置库、游戏辅助和托盘快捷操作。
-
-- **推荐下载**：`GO27Q32Lite-1.0.5-windows-x64-setup.exe`。安装时可选择简体中文或 English，默认选中 English。安装选择会成为软件语言，之后可在设置中修改。按当前用户安装，无需管理员权限。
-- 便携版：`GO27Q32Lite-1.0.5-windows-x64.zip`。完整解压后运行，保留全部 DLL 和子目录。
-- 已包含 .NET 与 Visual C++ 运行库。支持 Windows 10/11 x64。
-- “设置 → 检查更新”仅在 GitHub 正式版高于本地版本时提示，不自动下载或安装。
-- 配置目录统一为 `%LOCALAPPDATA%\GO27Q32Lite`。首次升级时，若新目录没有配置，会从旧目录复制；升级和卸载保留配置。
-
-本版增加五档 HDR 预设切换及应用规则支持，适配切换时的短暂黑屏，并修复部分界面布局。HDR 下的常规画面参数已禁用；旧 HDR 参数保留但不再套用，可在编辑器中手动复制到 SDR，已有 SDR 值不会被覆盖。当前 HDR 预设无法读回，实际模式以机身菜单为准。
-
-当前不提供 macOS 版本或 KVM 功能。程序未签名，Windows 可能显示未知发布者。
-
-下载校验值见 `SHA256SUMS.txt`。源代码采用 MIT License，字体和运行库按各自许可分发。
+- 新增五档 HDR 预设切换：HDR显示、HDR游戏、HDR电影、HDR亮彩和 HDRPeak 1300。
+- 配置库和应用规则支持 HDR 预设，SDR 画面参数与 HDR 预设分别保存。
+- 修复 HDR 下常规画面参数仍可调节、保存到错误分组的问题。
+- 改善 HDR 预设切换时的黑屏重连处理，等待显示器恢复后再开放操作。
+- 修复开启应用规则后，Windows HDR 开关和预设切换不可用的问题。
+- 修复下拉框标签裁切，优化“关于”区域排版，避免更新提示造成界面位移。
 
 ***
 
-GO27Q32 Lite 1.0.5: picture controls, Windows HDR, per-application profiles, Game Assist, and tray controls for the GIGABYTE GO27Q32.
-
-Download the **Windows x64 setup executable** for a per-user installation with a Simplified Chinese / English language selector. English is selected by default. Your installation choice becomes the app language and can be changed later in Settings. The portable ZIP is also available. Both include the .NET and Visual C++ runtimes.
-
-Update checks are manual. Only a newer stable GitHub release triggers an update notice; nothing is downloaded or installed automatically. Existing settings are preserved during upgrades and uninstallation.
-
-This release adds five HDR presets, preset selection in application profiles, recovery after brief display blanking, and layout fixes. Regular picture controls are disabled in HDR. Legacy HDR values are preserved but never applied; they can be copied manually to SDR without replacing existing SDR values. The current HDR preset cannot be read back; check the monitor's OSD.
-
-No macOS or KVM support is included. Binaries are unsigned. Checksums are listed in `SHA256SUMS.txt`.
+- Added five HDR presets: HDR Display, HDR Game, HDR Movie, HDR Vivid, and HDR Peak 1300.
+- Added HDR preset support to profiles and application rules, with SDR picture settings and HDR presets saved separately.
+- Fixed regular picture controls remaining adjustable in HDR and settings being saved to the wrong group.
+- Improved reconnection handling after HDR preset switching briefly blanks the display. Controls remain paused until the monitor recovers.
+- Fixed Windows HDR and preset controls being unavailable while application rules were enabled.
+- Fixed clipped dropdown labels and refined the About layout to prevent update messages from shifting controls.
