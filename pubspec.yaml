@@ -1,7 +1,7 @@
 name: go27q32_lite
 description: Native DDC/CI control for the Gigabyte GO27Q32.
 publish_to: none
-version: 1.0.0+18
+version: 1.0.5+23
 
 environment:
   sdk: ^3.9.0

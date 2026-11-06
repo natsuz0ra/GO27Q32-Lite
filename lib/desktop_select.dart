@@ -92,8 +92,11 @@ class DesktopSelect<T> extends StatelessWidget {
       child: Material(
         type: MaterialType.transparency,
         borderRadius: borderRadius ?? BorderRadius.circular(12),
-        clipBehavior: Clip.antiAlias,
+        // Outlined InputDecorator paints its floating label above these bounds.
+        // Clip only the ink via InkWell's border, not the decorator's label.
+        clipBehavior: Clip.none,
         child: InkWell(
+          borderRadius: borderRadius ?? BorderRadius.circular(12),
           onTap: enabled ? () => open(context) : null,
           child: InputDecorator(
             decoration: decoration.copyWith(enabled: enabled),

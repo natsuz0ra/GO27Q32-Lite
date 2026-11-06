@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go27q32_lite/app.dart';
+import 'package:go27q32_lite/about_card.dart';
 import 'package:go27q32_lite/core/control.dart';
 import 'package:go27q32_lite/editors.dart';
 import 'package:go27q32_lite/game_timer.dart';
@@ -216,6 +217,69 @@ void main() {
       await tester.binding.setSurfaceSize(null);
     },
   );
+  testWidgets('about card uses consistent sections in Chinese and English', (
+    tester,
+  ) async {
+    final m = await model();
+    for (final language in ['zh', 'en']) {
+      await m.preference('Language', language);
+      await host(
+        tester,
+        m,
+        language: language,
+        size: const Size(360, 720),
+        child: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: AboutCard(onQuit: () {}),
+          ),
+        ),
+      );
+      await capture(tester, 'about-$language');
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    m.dispose();
+    await tester.binding.setSurfaceSize(null);
+  });
+  testWidgets('HDR editor has presets only in Chinese and English', (
+    tester,
+  ) async {
+    final m = await model();
+    await m.command('hdr', {'enabled': true});
+    for (final language in ['zh', 'en']) {
+      await m.preference('Language', language);
+      await host(
+        tester,
+        m,
+        language: language,
+        child: Scaffold(body: ProfileEditor(model: m)),
+      );
+      expect(find.byType(Slider), findsNothing);
+      expect(find.byType(Checkbox), findsNothing);
+      await capture(tester, 'profile-hdr-$language');
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    m.dispose();
+    await tester.binding.setSurfaceSize(null);
+  });
+  testWidgets('HDR preset command card in Chinese and English', (tester) async {
+    final m = await model();
+    await m.command('hdr', {'enabled': true});
+    for (final language in ['zh', 'en']) {
+      await m.preference('Language', language);
+      await host(
+        tester,
+        m,
+        language: language,
+        child: AppShell(model: m, initialPage: 1),
+      );
+      expect(find.byKey(const ValueKey('hdr-preset-card')), findsOneWidget);
+      await capture(tester, 'hdr-presets-$language');
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    m.dispose();
+    await tester.binding.setSurfaceSize(null);
+  });
   testWidgets('disabled setting tooltip is anchored above its dropdown', (
     tester,
   ) async {
@@ -243,7 +307,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
     final tip = tester.getRect(
-      find.text('HDR 专用预设请通过显示器菜单切换', findRichText: true),
+      find.text('HDR 专用预设请在“HDR 状态”页面切换', findRichText: true),
     );
     expect((tip.center.dx - control.center.dx).abs(), lessThan(5));
     expect(tip.bottom, lessThan(control.top));

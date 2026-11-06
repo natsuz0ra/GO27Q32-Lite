@@ -20,6 +20,8 @@ flutter pub get
 
 脚本依次执行静态分析、Flutter 测试、核心逻辑检查、JSONL 后端检查、Release 编译和原生桌面自检。演示检查不会读写真实显示器。
 
+如果要求构建期间不启动桌面程序，添加 `-SkipDesktopChecks`。该选项仅跳过原生窗口自检，其他检查照常执行；`-SkipChecks` 用于已单独跑完检查后的打包。
+
 输出到 `dist/版本号/win-x64`，并生成便携 ZIP 与源码 ZIP。.NET 后端使用自包含发布；C++ 运行库从已安装的 Visual Studio Redist 目录复制到应用目录。
 
 自动构建可以用以下命令获取固定版本的安装器编译器：

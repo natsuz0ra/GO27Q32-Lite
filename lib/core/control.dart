@@ -5,6 +5,19 @@ import 'package:flutter/foundation.dart';
 import '../l10n.dart';
 
 typedef Json = Map<String, dynamic>;
+bool sdrPicture(String id) => const {
+  'brightness',
+  'contrast',
+  'pictureMode',
+  'sharpness',
+  'blackEqualizer',
+  'colorVibrance',
+  'gamma',
+  'colorTemperature',
+  'lowBlueLight',
+  'superResolution',
+  'overdrive',
+}.contains(id);
 Json copyJson(Json value) => jsonDecode(jsonEncode(value)) as Json;
 
 /// Keep background snapshots out of short pointer/keyboard menu interactions.
@@ -119,6 +132,10 @@ class ControlModel extends ChangeNotifier {
         'MinimizeToTray': true,
       };
   List<Json> features = [];
+  List<Json> hdrPresets = [];
+  bool _sendingHdrPreset = false;
+  bool get hdrPresetSwitching =>
+      _sendingHdrPreset || state['hdrPresetRecovering'] == true;
   final pending = <String, int>{}, inFlight = <String, int>{};
   Timer? _poll, _debounce;
   int _revision = 0;
@@ -134,6 +151,30 @@ class ControlModel extends ChangeNotifier {
   bool get activeHdr => (state['hdr'] as Json?)?['ActiveHdr'] == true;
   bool get hdrEnabled => (state['hdr'] as Json?)?['Enabled'] == true;
   bool get stableHdr => state['hdr'] != null && activeHdr == hdrEnabled;
+  Json? get hdrPresetRequest => state['hdrPresetRequest'] as Json?;
+  String? get hdrPresetBlocked {
+    if (hdrPresetSwitching) return '预设切换中，显示器可能短暂黑屏。正在等待连接恢复…';
+    if (!connected) return '显示器未连接';
+    if (busy) return '正在应用设置';
+    if (!stableHdr) return 'HDR 状态未知或正在切换';
+    if (!activeHdr) return '请先开启 Windows HDR，并等待显示器进入 HDR 输出。';
+    return null;
+  }
+
+  String? get hdrSwitchBlocked {
+    if (hdrPresetSwitching) return '预设切换中，显示器可能短暂黑屏。正在等待连接恢复…';
+    if (!connected) return '显示器未连接';
+    if (busy) return '正在应用设置';
+    if (!stableHdr) return 'HDR 状态未知或正在切换';
+    if ((state['hdr'] as Json?)?['Supported'] != true) {
+      return '此显示目标没有报告 HDR 支持。';
+    }
+    return null;
+  }
+
+  String get hdrManualHint =>
+      automatic ? '手动切换会暂停应用规则，不修改已保存配置。' : '选择后点击切换；也可重新发送相同预设。';
+
   String get monitorId => state['monitorId'] as String? ?? '';
   String get status => state['status'] as String? ?? '正在启动控制服务…';
   List<Json> get profiles => (settings['Profiles'] as List).cast<Json>();
@@ -157,6 +198,9 @@ class ControlModel extends ChangeNotifier {
     final locale = AppLocalizations(
       settings['Language'] as String? ?? initialLanguage(Platform.localeName),
     );
+    if (v == null && activeHdr && sdrPicture(id)) {
+      return locale.text('HDR 下不可用');
+    }
     v ??= value(id);
     if (v == null) return locale.text('未读取');
     final choices = feature(id)?['Choices'] as List?;
@@ -171,6 +215,7 @@ class ControlModel extends ChangeNotifier {
   }
 
   String? blocked(String id, {bool ignoreManagement = false}) {
+    if (hdrPresetSwitching) return '正在等待显示器重新连接，请稍候。';
     if (!connected) return '显示器未连接';
     final deviceSetting = feature(id)?['DeviceSetting'] == true;
     if (!ignoreManagement && automatic && !deviceSetting) {
@@ -179,7 +224,8 @@ class ControlModel extends ChangeNotifier {
     if (!ignoreManagement && busy && !inFlight.containsKey(id)) return '正在应用设置';
     if (deviceSetting) return value(id) == null ? '当前无法读取此设备设置' : null;
     if (!stableHdr) return 'HDR 状态未知或正在切换';
-    if (activeHdr && id == 'pictureMode') return 'HDR 专用预设请通过显示器菜单切换';
+    if (activeHdr && id == 'pictureMode') return 'HDR 专用预设请在“HDR 状态”页面切换';
+    if (activeHdr && sdrPicture(id)) return 'HDR 下不支持常规画面调节，请通过机身菜单调整。';
     if (!activeHdr &&
         value('pictureMode') == 7 &&
         {
@@ -208,6 +254,7 @@ class ControlModel extends ChangeNotifier {
       state = data['state'] as Json;
       settings = data['settings'] as Json;
       features = (data['features'] as List).cast<Json>();
+      hdrPresets = (data['hdrPresets'] as List? ?? []).cast<Json>();
       demo = data['demo'] == true;
       ready = true;
       if (polling) {
@@ -309,7 +356,7 @@ class ControlModel extends ChangeNotifier {
         }
       }
     } catch (e) {
-      if (error != '$e') {
+      if (revision == _revision && !busy && !closed && error != '$e') {
         error = '$e';
         notifyListeners();
       }
@@ -325,6 +372,7 @@ class ControlModel extends ChangeNotifier {
     busy = true;
     _revision++;
     error = null;
+    _sendingHdrPreset = method == 'hdrPreset';
     notifyListeners();
     try {
       state = await transport.call(method, args) as Json;
@@ -334,6 +382,7 @@ class ControlModel extends ChangeNotifier {
       await _recover();
       return false;
     } finally {
+      _sendingHdrPreset = false;
       busy = false;
       notifyListeners();
     }

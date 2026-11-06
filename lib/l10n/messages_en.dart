@@ -520,4 +520,70 @@ const enMessages = <String, String>{
       'Invalid HDR sample format. The original file was preserved.',
   'HDR 样本已达 100 条，请先备份现有文件。':
       'The HDR sample limit of 100 was reached. Back up the file first.',
+  'HDRPeak 1300': 'HDR Peak 1300',
+  'HDR 预设': 'HDR Preset',
+  '查看系统 HDR 请求与实际输出，SDR 保存常规参数，HDR 仅选择预设。':
+      'View requested and active HDR states. SDR saves picture settings; HDR selects a preset only.',
+  'HDR 下不可用': 'Unavailable in HDR',
+  'HDR 下仅支持预设配置': 'HDR profiles support presets only',
+  'HDR 下不支持常规画面调节，请通过机身菜单调整。':
+      'Regular picture controls are unavailable in HDR. Use the monitor OSD.',
+  'HDR 下不提供常规亮度调节，请在机身菜单调整。':
+      'Regular brightness control is unavailable in HDR. Use the monitor OSD.',
+  '当前为 HDR，常规画面参数不可用':
+      'HDR is active. Regular picture controls are unavailable.',
+  '仅在 SDR 输出下调节常规画面参数':
+      'Adjust regular picture settings only while SDR output is active',
+  'SDR 保存常规参数，HDR 只保存预设。编辑配置不会立即写入显示器。':
+      'SDR saves picture settings; HDR saves a preset only. Editing does not change the monitor.',
+  'HDR 下不保存亮度、对比度等常规参数。当前预设无法读回，请明确选择要套用的预设。':
+      'HDR profiles do not save brightness, contrast, or other regular settings. The current preset cannot be read; choose the preset to apply.',
+  '保持当前 HDR 预设': 'Keep the Current HDR Preset',
+  '仅在套用配置后的实际输出为 HDR 时发送预设。':
+      'The preset is sent only if the resulting output is HDR.',
+  '旧版 HDR 常规参数已停用，原数据保留。可在 SDR 页手动复制。':
+      'Legacy HDR picture settings are disabled and preserved. You can copy them manually on the SDR tab.',
+  '旧版 HDR 常规参数已停用；复制只补充未勾选的 SDR 项，不覆盖已有值。':
+      'Legacy HDR settings are disabled. Copying fills unselected SDR settings without replacing existing values.',
+  '将旧参数复制到 SDR': 'Copy Legacy Settings to SDR',
+  'SDR {0} 项': 'SDR: {0} settings',
+  '当前 HDR 预设无法读取，请设置关闭 HDR 或指定 HDR 预设的桌面默认配置。':
+      'The current HDR preset cannot be read. Set a desktop default that disables HDR or specifies an HDR preset.',
+  'HDR 预设切换尚未确认，自动切换已暂停，请等待显示器恢复。':
+      'HDR preset switching is not yet confirmed. Automation is paused; wait for the display to recover.',
+  '自动切换已关闭，已应用桌面返回策略；HDR 预设以机身菜单为准。':
+      'Automation stopped and the desktop return policy was applied. Check the OSD for the HDR preset.',
+  '软件更新': 'Software Updates',
+  '版本 {0}': 'Version {0}',
+  'HarmonyOS Sans 字体与第三方组件': 'HarmonyOS Sans and third-party components',
+  '正在切换…': 'Switching…',
+  '预设切换中，显示器可能短暂黑屏。正在等待连接恢复…':
+      'Switching presets. A brief black screen is expected. Waiting for the display to reconnect…',
+  '正在等待显示器重新连接，请稍候。': 'Waiting for the display to reconnect. Please wait.',
+  'HDR 预设请求已发送，显示器仍在重新连接，恢复后会自动更新。':
+      'HDR preset request sent. The display is still reconnecting; status will update when it returns.',
+  'HDR 预设请求后目标显示器改变，已停止等待，请检查连接。':
+      'The target display changed after the HDR preset request. Recovery stopped; check the connection.',
+  '显示器连接已恢复，HDR 预设请以机身菜单为准。':
+      'The display connection has recovered. Check the monitor OSD for the HDR preset.',
+  '手动切换会暂停应用规则，不修改已保存配置。':
+      'Switching manually pauses app rules. Saved profiles stay unchanged.',
+  'HDR 专用预设请在“HDR 状态”页面切换': 'Switch HDR presets on the HDR Status page',
+  'HDR 预设请使用专用切换命令。': 'Use the dedicated HDR preset switch command.',
+  '仅发送预设切换，不调整其他画面参数。当前模式无法读回，请以机身菜单为准。':
+      'Sends a preset switch only. Other picture settings stay untouched. The current HDR preset cannot be read; check the monitor OSD.',
+  '选择要切换的预设': 'Choose a preset to send',
+  '切换预设': 'Switch Preset',
+  '选择后点击切换；也可重新发送相同预设。':
+      'Choose a preset, then switch. You can send the same preset again.',
+  '上次请求（非当前模式）': 'Last Request (Not Current Mode)',
+  '本次运行尚未发送': 'No request this session',
+  'HDR 预设超出允许范围。': 'The HDR preset is outside the allowed range.',
+  'HDR 预设切换请求未能发送。': 'The HDR preset switch request could not be sent.',
+  'HDR 预设请求后显示路径或输出改变，请检查机身菜单。':
+      'The display path or output changed after the HDR preset request. Check the monitor OSD.',
+  'HDR 预设切换请求已发送，请以机身菜单为准。':
+      'HDR preset switch request sent. Check the monitor OSD.',
+  'macOS 硬件控制尚未实现。HDR 专用预设支持发送切换请求，当前模式请以机身菜单为准。':
+      'macOS hardware control is not available. HDR preset switch requests are supported; check the monitor OSD for the current preset.',
 };

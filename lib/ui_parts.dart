@@ -383,6 +383,15 @@ class FeatureControl extends StatelessWidget {
   Widget build(BuildContext context) {
     final f = model.feature(id);
     if (f == null) return const SizedBox.shrink();
+    if (large && model.activeHdr && sdrPicture(id)) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: LText(
+          'HDR 下不提供常规亮度调节，请在机身菜单调整。',
+          style: TextStyle(fontSize: 14),
+        ),
+      );
+    }
     final value = model.value(id),
         reason = model.blocked(id),
         choices = f['Choices'] as List?;
@@ -459,7 +468,7 @@ class FeatureControl extends StatelessWidget {
             SizedBox(
               width: 46,
               child: LText(
-                model.label(id),
+                model.activeHdr && sdrPicture(id) ? '—' : model.label(id),
                 textAlign: TextAlign.end,
                 style: Theme.of(context).textTheme.labelLarge,
               ),
@@ -515,16 +524,16 @@ class HdrSwitch extends StatelessWidget {
   const HdrSwitch({super.key, required this.model});
   final ControlModel model;
   @override
-  Widget build(BuildContext context) => Switch(
-    value: model.hdrEnabled,
-    onChanged:
-        !model.connected ||
-            model.busy ||
-            model.automatic ||
-            !model.stableHdr ||
-            (model.state['hdr'] as Json?)?['Supported'] != true
-        ? null
-        : (v) => model.command('hdr', {'enabled': v}),
+  Widget build(BuildContext context) => LTooltip(
+    message:
+        model.hdrSwitchBlocked ??
+        (model.automatic ? '手动切换会暂停应用规则，不修改已保存配置。' : 'Windows「使用 HDR」开关'),
+    child: Switch(
+      value: model.hdrEnabled,
+      onChanged: model.hdrSwitchBlocked != null
+          ? null
+          : (v) => model.command('hdr', {'enabled': v}),
+    ),
   );
 }
 

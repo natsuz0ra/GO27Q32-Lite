@@ -10,6 +10,25 @@ public sealed record Choice(uint Value, string Name)
 /// <summary>Confirmed VCP reading: current value and the maximum the display reports.</summary>
 public sealed record VcpValue(uint Value, uint Maximum);
 
+// SET-only HDR enumeration confirmed against this model's physical OSD.
+// GET E7 does not identify the current HDR preset and must never determine it.
+public static class HdrPresets
+{
+    public const byte Code = 0xE7;
+    public static readonly Choice[] Choices = [new(0, "HDR显示"), new(1, "HDR游戏"), new(2, "HDR电影"), new(3, "HDR亮彩"), new(4, "HDRPeak 1300")];
+    public static void Validate(uint value)
+    {
+        if (!Choices.Any(c => c.Value == value)) throw new InvalidDataException("HDR 预设超出允许范围。");
+    }
+    public static void Send(uint value, Action<byte, uint> send)
+    {
+        Validate(value);
+        send(Code, value); // Always send, including 0 and repeated requests; never consult GET.
+    }
+}
+
+public sealed record HdrPresetRequest(uint Value, string MonitorId, DateTimeOffset SentAt);
+
 public sealed record Feature(string Id, string Name, byte Code, uint Max, Choice[]? Choices = null, bool Automatic = true, bool DeviceSetting = false, bool PackedTime = false)
 {
     public bool Accepts(uint value) => PackedTime ? GameTimer.Valid(value) : Choices is null ? value <= Max : Choices.Any(x => x.Value == value);
@@ -38,6 +57,7 @@ public static class GameTimer
 
 public static class Features
 {
+    public static bool SdrPicture(string id) => id is "brightness" or "contrast" or "pictureMode" or "sharpness" or "blackEqualizer" or "colorVibrance" or "gamma" or "colorTemperature" or "lowBlueLight" or "superResolution" or "overdrive";
     // Source: supplied Sidekick -> HDMI_LIB/MS_HUB.cs and model-specific DDC.cs routing.
     private static Choice[] Labels(params string[] names) => names.Select((n, i) => new Choice((uint)i, n)).ToArray();
     // QuickSwitchType 23: these are command values, never dropdown indices.
@@ -79,7 +99,7 @@ public static class Features
     public static string? BlockReason(string id, uint? pictureMode, bool activeHdr = false)
     {
         // Raw E7 values in HDR are not the SDR sRGB/ECO enum.
-        if (activeHdr) return id == "pictureMode" ? "HDR 专用预设协议尚未核实，请通过机身菜单切换" : null;
+        if (activeHdr) return id == "pictureMode" ? "HDR 预设请使用专用切换命令。" : SdrPicture(id) ? "HDR 下不支持常规画面调节，请通过机身菜单调整。" : null;
         // GO27Q32 fun=0x67E: contrast follows sRGB_Not, not Standard_Contrast.
         // OSD.Change_Event_Switch(PictureModeType=2) + A0_6E ItemEnabled assignments.
         if (pictureMode == 7 && id is "contrast" or "sharpness" or "blackEqualizer" or "colorVibrance" or "gamma" or "colorTemperature" or "lowBlueLight" or "superResolution" or "overdrive")
@@ -98,8 +118,10 @@ public sealed class Profile
     public string MonitorId { get; set; } = "";
     public Dictionary<string, uint> Values { get; set; } = [];
     public Dictionary<string, uint> HdrValues { get; set; } = [];
+    public uint? HdrPreset { get; set; }
     public int HdrPolicy { get; set; } = -1;
-    public Dictionary<string, uint> ForMode(bool hdr) => hdr ? HdrValues : Values;
+    // HdrValues is retained solely for compatibility/export. Never apply it.
+    public Dictionary<string, uint> ForMode(bool hdr) => hdr ? [] : Values;
     public override string ToString() => Name;
 }
 
@@ -175,12 +197,24 @@ public sealed class SettingsStore
     public Settings Load()
     {
         MigrateLegacy();
-        if (!File.Exists(Path)) return new Settings();
-        string content = File.ReadAllText(Path);
-        using var document = JsonDocument.Parse(content);
-        var result = JsonSerializer.Deserialize<Settings>(content, Json) ?? throw new InvalidDataException("配置为空");
-        Validate(result);
-        if (!document.RootElement.TryGetProperty("Language", out _)) Save(result);
+        var result = new Settings();
+        bool save = false;
+        if (File.Exists(Path))
+        {
+            string content = File.ReadAllText(Path);
+            using var document = JsonDocument.Parse(content);
+            result = JsonSerializer.Deserialize<Settings>(content, Json) ?? throw new InvalidDataException("配置为空");
+            Validate(result);
+            save = !document.RootElement.TryGetProperty("Language", out _);
+        }
+        // The installer writes a one-shot preference, not a replacement settings file.
+        // Save before consuming it so later in-app choices remain authoritative.
+        string languagePath = Path + ".install-language";
+        string? language = File.Exists(languagePath) ? File.ReadAllText(languagePath).Trim() : null;
+        bool installedLanguage = language is "zh" or "en";
+        if (installedLanguage) { result.Language = language!; save = true; }
+        if (save) Save(result);
+        if (installedLanguage) File.Delete(languagePath);
         return result;
     }
     public void Save(Settings settings)
@@ -198,7 +232,8 @@ public sealed class SettingsStore
         if (settings.Profiles.Select(p => p.Id).Distinct().Count() != settings.Profiles.Count) throw new InvalidDataException("配置 ID 重复");
         foreach (var p in settings.Profiles)
         {
-            if (string.IsNullOrWhiteSpace(p.Id) || string.IsNullOrWhiteSpace(p.Name) || string.IsNullOrWhiteSpace(p.MonitorId) || p.Values is null || p.HdrValues is null || (p.Values.Count + p.HdrValues.Count == 0 && p.HdrPolicy == -1) || p.HdrPolicy is < -1 or > 1) throw new InvalidDataException("配置名称、显示器、HDR策略或参数无效");
+            if (string.IsNullOrWhiteSpace(p.Id) || string.IsNullOrWhiteSpace(p.Name) || string.IsNullOrWhiteSpace(p.MonitorId) || p.Values is null || p.HdrValues is null || (p.Values.Count + p.HdrValues.Count == 0 && p.HdrPreset is null && p.HdrPolicy == -1) || p.HdrPolicy is < -1 or > 1) throw new InvalidDataException("配置名称、显示器、HDR策略或参数无效");
+            if (p.HdrPreset is uint preset) HdrPresets.Validate(preset);
             foreach (var pair in p.Values.Concat(p.HdrValues))
                 if (!Features.Get(pair.Key).Accepts(pair.Value) || !Features.Get(pair.Key).Automatic) throw new InvalidDataException("配置参数超出范围或不允许自动应用：" + pair.Key);
         }

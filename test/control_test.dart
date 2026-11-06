@@ -76,7 +76,7 @@ void main() {
     transport.state['hdr']['Enabled'] = true;
     transport.state['hdr']['ActiveHdr'] = true;
     await m.tick();
-    expect(m.value('brightness'), 61);
+    expect(m.blocked('brightness'), contains('HDR'));
     expect(m.activeHdr, isTrue);
     expect(m.blocked('pictureMode'), contains('HDR 专用预设'));
   });

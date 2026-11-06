@@ -81,11 +81,12 @@ public sealed class MonitorService : IDisposable
         }
         throw new Win32Exception(error, $"{feature.Name}读取失败（0x{feature.Code:X2}，错误 {error}）");
     }
-    public Task<Dictionary<string, VcpValue>> ReadAllAsync(MonitorDevice monitor) => Run(() =>
+    public Task<Dictionary<string, VcpValue>> ReadAllAsync(MonitorDevice monitor, bool activeHdr = false) => Run(() =>
     {
         var result = new Dictionary<string, VcpValue>();
         foreach (var f in Features.All)
         {
+            if (activeHdr && Features.SdrPicture(f.Id)) continue;
             try { var value = Read(monitor, f); if (f.Accepts(value.Value)) result[f.Id] = value; }
             catch (Win32Exception) { }
         }
@@ -112,6 +113,22 @@ public sealed class MonitorService : IDisposable
         Write(monitor, feature, value);
         if (feature.Id == "input") return new VcpValue(value, feature.Max);
         return Read(monitor, feature);
+    });
+    public Task SetHdrPresetAsync(MonitorDevice monitor, uint value) => Run(() =>
+    {
+        HdrPresets.Validate(value);
+        Require(monitor);
+        var expected = StableOutput(monitor);
+        if (!expected.ActiveHdr) throw new InvalidOperationException("请先开启 Windows HDR，并等待显示器进入 HDR 输出。");
+        CheckOutput(monitor, expected);
+        HdrPresets.Send(value, (code, requested) =>
+        {
+            if (!Native.SetVCPFeature(monitor.Handle, code, requested))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "HDR 预设切换请求未能发送。");
+        });
+        // E7 GET cannot verify HDR presets. Do not retry or claim readback confirmation.
+        // The host owns the quiet period and fresh-handle recovery after this call.
+        return true;
     });
     Dictionary<string, VcpValue> TimerSnapshot(MonitorDevice monitor)
     {

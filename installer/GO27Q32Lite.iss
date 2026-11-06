@@ -26,7 +26,8 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 WizardStyle=modern
 ShowLanguageDialog=yes
-LanguageDetectionMethod=uilanguage
+LanguageDetectionMethod=none
+UsePreviousLanguage=no
 SetupIconFile=..\windows\runner\resources\app_icon.ico
 UninstallDisplayIcon={app}\go27q32_lite.exe
 LicenseFile=..\LICENSE
@@ -64,6 +65,22 @@ Name: "{autodesktop}\GO27Q32 Lite"; Filename: "{app}\go27q32_lite.exe"; Paramete
 Filename: "{app}\go27q32_lite.exe"; Parameters: "--show"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  SettingsDir, Language: String;
+begin
+  if CurStep = ssPostInstall then begin
+    Language := 'en';
+    if ActiveLanguage = 'zhCN' then Language := 'zh';
+    SettingsDir := ExpandConstant('{localappdata}\GO27Q32Lite');
+    // Apply once on the next launch, including when "Open" is unchecked.
+    if not ForceDirectories(SettingsDir) then
+      RaiseException(SysErrorMessage(DLLGetLastError));
+    if not SaveStringToFile(SettingsDir + '\settings.json.install-language', Language, False) then
+      RaiseException(SysErrorMessage(DLLGetLastError));
+  end;
+end;
+
 // Change only our existing Run value. Never delete another portable copy's entry.
 function IsOurStartupCommand(const Command: String): Boolean;
 begin

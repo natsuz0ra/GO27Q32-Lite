@@ -8,8 +8,9 @@ import 'core/control.dart';
 import 'desktop.dart';
 import 'editors.dart';
 import 'game_timer.dart';
+import 'hdr_preset_card.dart';
 import 'ui_parts.dart';
-import 'update_card.dart';
+import 'about_card.dart';
 import 'version.dart';
 
 const pageNames = ['显示器', 'HDR 状态', '应用规则', '配置库', '设置'];
@@ -350,7 +351,7 @@ class _AppShellState extends State<AppShell> {
   Widget _heading() {
     final subtitles = [
       '直接调节显示器；临时改动可另存为配置。',
-      '查看系统 HDR 请求与实际输出，分别保存 SDR / HDR 参数。',
+      '查看系统 HDR 请求与实际输出，SDR 保存常规参数，HDR 仅选择预设。',
       '应用启动后自动套用配置，退出后恢复桌面画面。',
       '管理画面参数，为应用规则提供可复用的配置。',
       '启动行为、状态同步与界面外观。',
@@ -553,10 +554,10 @@ class _AppShellState extends State<AppShell> {
           children: [
             SectionCard(
               title: '亮度',
-              subtitle: '修改后写入显示器，并读回确认',
+              subtitle: m.activeHdr ? 'HDR 下仅支持预设配置' : '修改后写入显示器，并读回确认',
               icon: Icons.light_mode_outlined,
               tint: true,
-              trailing: StatusPill(m.activeHdr ? 'HDR 参数' : 'SDR 参数'),
+              trailing: StatusPill(m.activeHdr ? 'HDR 预设' : 'SDR 参数'),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(22, 6, 22, 22),
                 child: Column(
@@ -631,7 +632,9 @@ class _AppShellState extends State<AppShell> {
                     const SizedBox(height: 12),
                     DetailLine(
                       '亮度 / 对比度',
-                      '${m.label('brightness')} / ${m.label('contrast')}',
+                      m.activeHdr
+                          ? 'HDR 下不可用'
+                          : '${m.label('brightness')} / ${m.label('contrast')}',
                     ),
                     const Divider(),
                     DetailLine('Gamma', m.label('gamma')),
@@ -822,9 +825,11 @@ class _AppShellState extends State<AppShell> {
             const SizedBox(height: 18),
             SectionCard(
               key: const ValueKey('hdr-parameters-card'),
-              title: 'SDR 与 HDR 参数',
+              title: 'SDR 参数',
               icon: Icons.layers_outlined,
-              subtitle: '分组独立保存 · 当前调节 ${m.activeHdr ? 'HDR' : 'SDR'} 参数',
+              subtitle: m.activeHdr
+                  ? '当前为 HDR，常规画面参数不可用'
+                  : '仅在 SDR 输出下调节常规画面参数',
               trailing: TextButton(
                 onPressed: m.connected && !m.busy
                     ? () => editProfile(context, m)
@@ -847,7 +852,14 @@ class _AppShellState extends State<AppShell> {
             ),
           ],
         ),
-        _syncCard(),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            HdrPresetCard(model: m),
+            const SizedBox(height: 18),
+            _syncCard(),
+          ],
+        ),
       ),
     ],
   );
@@ -1183,7 +1195,12 @@ class _AppShellState extends State<AppShell> {
   );
   Widget _profileCard(Json p, int index) {
     final active = p['Id'] == m.state['activeProfile'];
-    final bank = p[m.activeHdr ? 'HdrValues' : 'Values'] as Json;
+    final bank = p['Values'] as Json;
+    final presetName =
+        m.hdrPresets
+                .where((choice) => choice['Value'] == p['HdrPreset'])
+                .firstOrNull?['Name']
+            as String?;
     final accents = [
       colors.primaryContainer,
       colors.tertiaryContainer,
@@ -1262,14 +1279,15 @@ class _AppShellState extends State<AppShell> {
                           ? '关闭'
                           : '保持'}',
                     ),
-                    StatusPill(
-                      'SDR ${(p['Values'] as Json).length} 项 / HDR ${(p['HdrValues'] as Json).length} 项',
-                    ),
+                    StatusPill('SDR ${(p['Values'] as Json).length} 项'),
+                    StatusPill(presetName ?? '保持当前 HDR 预设'),
                   ],
                 ),
                 const SizedBox(height: 14),
                 LText(
-                  bank.isEmpty
+                  m.activeHdr
+                      ? (presetName ?? '保持当前 HDR 预设')
+                      : bank.isEmpty
                       ? '当前输出分组未记录参数'
                       : bank.entries
                             .take(3)
@@ -1558,48 +1576,7 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
         const SizedBox(height: 18),
-        SectionCard(
-          title: 'GO27Q32 Lite',
-          leading: const AppMark(size: 28),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const DetailLine('版本', appVersion),
-                const Divider(),
-                const DetailLine('控制接口', 'Windows DDC/CI'),
-                const SizedBox(height: 12),
-                const LText(
-                  'macOS 硬件控制尚未实现。HDR 专用预设仍需通过机身菜单切换。',
-                  style: TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 16),
-                const UpdateControls(),
-                const SizedBox(height: 16),
-                const LText(
-                  '使用 HarmonyOS Sans 字体',
-                  style: TextStyle(fontSize: 12),
-                ),
-                TextButton.icon(
-                  onPressed: () => showLicensePage(
-                    context: context,
-                    applicationName: 'GO27Q32 Lite',
-                    applicationVersion: appVersion,
-                  ),
-                  icon: const Icon(Icons.description_outlined, size: 18),
-                  label: const LText('开源许可'),
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: widget.onQuit,
-                  icon: const Icon(Icons.logout, size: 18),
-                  label: const LText('退出程序'),
-                ),
-              ],
-            ),
-          ),
-        ),
+        AboutCard(onQuit: widget.onQuit),
       ],
     ),
   );

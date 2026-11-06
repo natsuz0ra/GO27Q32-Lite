@@ -51,8 +51,8 @@ class _UpdateControlsState extends State<UpdateControls> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       const LText(
-        '仅手动检查 GitHub 正式版；不会自动下载或安装。',
-        style: TextStyle(fontSize: 12),
+        '软件更新',
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
       const SizedBox(height: 10),
       OutlinedButton.icon(
@@ -66,17 +66,40 @@ class _UpdateControlsState extends State<UpdateControls> {
             : const Icon(Icons.system_update_alt, size: 18),
         label: LText(checking ? '正在检查更新…' : '检查更新'),
       ),
-      // Feedback stays in the settings card and never opens an unsolicited dialog.
-      if (result != null || error != null) ...[
-        const SizedBox(height: 10),
-        LText(
-          error ?? (result!.hasUpdate ? '发现新版本：${result!.version}' : '已是最新版本'),
-          style: TextStyle(
-            fontSize: 12,
-            color: error != null ? Theme.of(context).colorScheme.error : null,
+      const SizedBox(height: 8),
+      // Use the same slot for the explanation and the result, keeping other rows still.
+      SizedBox(
+        height: 40,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: LTooltip(
+            message:
+                error ??
+                (result == null
+                    ? '仅手动检查 GitHub 正式版；不会自动下载或安装。'
+                    : result!.hasUpdate
+                    ? '发现新版本：${result!.version}'
+                    : '已是最新版本'),
+            child: LText(
+              error ??
+                  (result == null
+                      ? '仅手动检查 GitHub 正式版；不会自动下载或安装。'
+                      : result!.hasUpdate
+                      ? '发现新版本：${result!.version}'
+                      : '已是最新版本'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.5,
+                color: error != null
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ),
-      ],
+      ),
       if (result?.hasUpdate == true || error != null)
         TextButton.icon(
           onPressed: openRelease,

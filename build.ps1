@@ -1,7 +1,8 @@
 param(
   [string]$Flutter = (Join-Path (Split-Path -Parent $PSScriptRoot) 'flutter-sdk/flutter/bin/flutter.bat'),
   [string]$Dotnet = (Join-Path (Split-Path -Parent $PSScriptRoot) '.dotnet9sdk/dotnet.exe'),
-  [switch]$SkipChecks
+  [switch]$SkipChecks,
+  [switch]$SkipDesktopChecks
 )
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
@@ -42,10 +43,12 @@ foreach ($notice in @('LICENSE.txt','ThirdPartyNotices.txt')) {
 }
 $checkLog = Join-Path $releaseRoot 'desktop-checks.txt'
 if (Test-Path -LiteralPath $checkLog) { Remove-Item -LiteralPath $checkLog }
-$app = Start-Process -FilePath "$releaseRoot/go27q32_lite.exe" -ArgumentList '--demo','--self-check' -WindowStyle Hidden -PassThru
-if (-not $app.WaitForExit(45000)) { Stop-Process -Id $app.Id; throw 'Desktop self-check timed out (only the test instance was stopped).' }
-if ($app.ExitCode -ne 0) { throw "Desktop self-check exited with $($app.ExitCode)." }
-if (-not (Test-Path -LiteralPath $checkLog) -or (Get-Content -Raw -LiteralPath $checkLog) -match 'FAIL') { throw 'Desktop self-check failed; inspect desktop-checks.txt.' }
+if (-not $SkipDesktopChecks) {
+  $app = Start-Process -FilePath "$releaseRoot/go27q32_lite.exe" -ArgumentList '--demo','--self-check' -WindowStyle Hidden -PassThru
+  if (-not $app.WaitForExit(45000)) { Stop-Process -Id $app.Id; throw 'Desktop self-check timed out (only the test instance was stopped).' }
+  if ($app.ExitCode -ne 0) { throw "Desktop self-check exited with $($app.ExitCode)." }
+  if (-not (Test-Path -LiteralPath $checkLog) -or (Get-Content -Raw -LiteralPath $checkLog) -match 'FAIL') { throw 'Desktop self-check failed; inspect desktop-checks.txt.' }
+}
 $zip = Join-Path $PSScriptRoot "dist/GO27Q32Lite-$version-windows-x64.zip"
 Compress-Archive -Path (Get-ChildItem -LiteralPath $releaseRoot | Where-Object Name -ne 'desktop-checks.txt').FullName -DestinationPath $zip -Force
 # A clean source archive, without SDKs, generated caches or other workspace projects.
