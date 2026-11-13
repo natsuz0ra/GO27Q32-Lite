@@ -57,6 +57,7 @@ public static class GameTimer
 
 public static class Features
 {
+    public static bool HdrProfile(string id) => id is "crosshair" or "refreshOverlay" or "freeSync" or "volume";
     public static bool SdrPicture(string id) => id is "brightness" or "contrast" or "pictureMode" or "sharpness" or "blackEqualizer" or "colorVibrance" or "gamma" or "colorTemperature" or "lowBlueLight" or "superResolution" or "overdrive";
     // Source: supplied Sidekick -> HDMI_LIB/MS_HUB.cs and model-specific DDC.cs routing.
     private static Choice[] Labels(params string[] names) => names.Select((n, i) => new Choice((uint)i, n)).ToArray();
@@ -120,8 +121,8 @@ public sealed class Profile
     public Dictionary<string, uint> HdrValues { get; set; } = [];
     public uint? HdrPreset { get; set; }
     public int HdrPolicy { get; set; } = -1;
-    // HdrValues is retained solely for compatibility/export. Never apply it.
-    public Dictionary<string, uint> ForMode(bool hdr) => hdr ? [] : Values;
+    // Preserve legacy picture fields for export, but apply only known independent controls in HDR.
+    public Dictionary<string, uint> ForMode(bool hdr) => hdr ? HdrValues.Where(p => Features.HdrProfile(p.Key)).ToDictionary() : new(Values);
     public override string ToString() => Name;
 }
 

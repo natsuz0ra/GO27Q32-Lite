@@ -351,7 +351,7 @@ class _AppShellState extends State<AppShell> {
   Widget _heading() {
     final subtitles = [
       '直接调节显示器；临时改动可另存为配置。',
-      '查看系统 HDR 请求与实际输出，SDR 保存常规参数，HDR 仅选择预设。',
+      '查看系统 HDR 请求与实际输出，分别管理画面参数、HDR 预设和独立功能。',
       '应用启动后自动套用配置，退出后恢复桌面画面。',
       '管理画面参数，为应用规则提供可复用的配置。',
       '启动行为、状态同步与界面外观。',
@@ -554,7 +554,9 @@ class _AppShellState extends State<AppShell> {
           children: [
             SectionCard(
               title: '亮度',
-              subtitle: m.activeHdr ? 'HDR 下仅支持预设配置' : '修改后写入显示器，并读回确认',
+              subtitle: m.activeHdr
+                  ? 'HDR 下常规画面参数不可用，准星等独立功能仍可配置'
+                  : '修改后写入显示器，并读回确认',
               icon: Icons.light_mode_outlined,
               tint: true,
               trailing: StatusPill(m.activeHdr ? 'HDR 预设' : 'SDR 参数'),
@@ -1195,7 +1197,10 @@ class _AppShellState extends State<AppShell> {
   );
   Widget _profileCard(Json p, int index) {
     final active = p['Id'] == m.state['activeProfile'];
-    final bank = p['Values'] as Json;
+    final hdrBank = Map<String, dynamic>.fromEntries(
+      ((p['HdrValues'] as Json?) ?? {}).entries.where((e) => hdrProfile(e.key)),
+    );
+    final bank = m.activeHdr ? hdrBank : p['Values'] as Json;
     final presetName =
         m.hdrPresets
                 .where((choice) => choice['Value'] == p['HdrPreset'])
@@ -1281,13 +1286,12 @@ class _AppShellState extends State<AppShell> {
                     ),
                     StatusPill('SDR ${(p['Values'] as Json).length} 项'),
                     StatusPill(presetName ?? '保持当前 HDR 预设'),
+                    StatusPill('HDR 独立功能 ${hdrBank.length} 项'),
                   ],
                 ),
                 const SizedBox(height: 14),
                 LText(
-                  m.activeHdr
-                      ? (presetName ?? '保持当前 HDR 预设')
-                      : bank.isEmpty
+                  bank.isEmpty
                       ? '当前输出分组未记录参数'
                       : bank.entries
                             .take(3)

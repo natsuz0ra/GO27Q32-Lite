@@ -40,6 +40,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
   late TextEditingController name;
   bool hdr = false;
   String? error;
+  final hdrScroll = ScrollController();
   @override
   void initState() {
     super.initState();
@@ -60,17 +61,18 @@ class _ProfileEditorState extends State<ProfileEditor> {
     hdr = widget.existing == null
         ? m.activeHdr
         : draft['HdrPolicy'] == 1 || draft['HdrPolicy'] == -1 && m.activeHdr;
-    if (widget.existing == null && !m.activeHdr && m.stableHdr) {
+    if (widget.existing == null && m.stableHdr) {
       final current = <String, dynamic>{};
       for (final f in m.features) {
         final id = f['Id'] as String;
         if (f['Automatic'] == true &&
+            (!m.activeHdr || hdrProfile(id)) &&
             m.confirmed(id) != null &&
             m.blocked(id, ignoreManagement: true) == null) {
           current[id] = m.confirmed(id);
         }
       }
-      draft['Values'] = current;
+      draft[m.activeHdr ? 'HdrValues' : 'Values'] = current;
     }
     name = TextEditingController(text: draft['Name'] as String);
   }
@@ -78,6 +80,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
   @override
   void dispose() {
     name.dispose();
+    hdrScroll.dispose();
     super.dispose();
   }
 
@@ -85,13 +88,14 @@ class _ProfileEditorState extends State<ProfileEditor> {
   Widget build(BuildContext context) {
     final bank = draft['Values'] as Json;
     final legacy = draft['HdrValues'] as Json;
+    final hasLegacy = legacy.keys.any((id) => !hdrProfile(id));
     return AlertDialog(
       title: LText(
         widget.existing == null ? (hdr ? '新配置' : '保存当前画面为配置') : '编辑配置',
       ),
       content: SizedBox(
         width: 620,
-        height: hdr ? (legacy.isNotEmpty ? 500 : 420) : 580,
+        height: 580,
         child: Column(
           children: [
             TextField(
@@ -117,63 +121,67 @@ class _ProfileEditorState extends State<ProfileEditor> {
             SegmentedButton<bool>(
               segments: const [
                 ButtonSegment(value: false, label: LText('SDR 参数')),
-                ButtonSegment(value: true, label: LText('HDR 预设')),
+                ButtonSegment(value: true, label: LText('HDR 设置')),
               ],
               selected: {hdr},
               onSelectionChanged: (v) => setState(() => hdr = v.first),
             ),
             const SizedBox(height: 10),
             const LText(
-              'SDR 保存常规参数，HDR 只保存预设。编辑配置不会立即写入显示器。',
+              '两组参数分别保存。HDR 支持预设及独立功能，编辑配置不会立即写入显示器。',
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 8),
             Expanded(
               child: hdr
-                  ? ListView(
-                      children: [
-                        const SizedBox(height: 16),
-                        const InfoBanner(
-                          'HDR 下不保存亮度、对比度等常规参数。当前预设无法读回，请明确选择要套用的预设。',
-                        ),
-                        const SizedBox(height: 20),
-                        DesktopSelect<int>(
-                          key: const ValueKey('profile-hdr-preset'),
-                          initialValue: draft['HdrPreset'] as int? ?? -1,
-                          decoration: InputDecoration(
-                            labelText: tr(context, 'HDR 专用预设'),
-                          ),
-                          items: [
-                            const DropdownMenuItem(
-                              value: -1,
-                              child: LText('保持当前 HDR 预设'),
-                            ),
-                            for (final preset in widget.model.hdrPresets)
-                              DropdownMenuItem(
-                                value: preset['Value'] as int,
-                                child: LText(preset['Name'] as String),
-                              ),
-                          ],
-                          onChanged: (v) => setState(
-                            () => draft['HdrPreset'] = v == -1 ? null : v,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const LText(
-                          '仅在套用配置后的实际输出为 HDR 时发送预设。',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        if (legacy.isNotEmpty) ...[
+                  ? Scrollbar(
+                      controller: hdrScroll,
+                      thumbVisibility: true,
+                      child: ListView(
+                        controller: hdrScroll,
+                        children: [
+                          const SizedBox(height: 16),
+                          const InfoBanner('HDR 支持预设与独立功能，亮度、对比度等常规参数不可用。'),
                           const SizedBox(height: 20),
-                          const InfoBanner(
-                            '旧版 HDR 常规参数已停用，原数据保留。可在 SDR 页手动复制。',
+                          DesktopSelect<int>(
+                            key: const ValueKey('profile-hdr-preset'),
+                            initialValue: draft['HdrPreset'] as int? ?? -1,
+                            decoration: InputDecoration(
+                              labelText: tr(context, 'HDR 专用预设'),
+                            ),
+                            items: [
+                              const DropdownMenuItem(
+                                value: -1,
+                                child: LText('保持当前 HDR 预设'),
+                              ),
+                              for (final preset in widget.model.hdrPresets)
+                                DropdownMenuItem(
+                                  value: preset['Value'] as int,
+                                  child: LText(preset['Name'] as String),
+                                ),
+                            ],
+                            onChanged: (v) => setState(
+                              () => draft['HdrPreset'] = v == -1 ? null : v,
+                            ),
                           ),
+                          const SizedBox(height: 12),
+                          for (final f
+                              in hdrProfileIds
+                                  .map(widget.model.feature)
+                                  .whereType<Json>())
+                            _field(f, legacy),
+                          if (hasLegacy) ...[
+                            const SizedBox(height: 20),
+                            const InfoBanner(
+                              '旧版 HDR 常规参数已停用，原数据保留。可在 SDR 页手动复制。',
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     )
                   : ListView(
                       children: [
-                        if (legacy.isNotEmpty) ...[
+                        if (hasLegacy) ...[
                           const LText(
                             '旧版 HDR 常规参数已停用；复制只补充未勾选的 SDR 项，不覆盖已有值。',
                             style: TextStyle(fontSize: 12),
@@ -184,7 +192,8 @@ class _ProfileEditorState extends State<ProfileEditor> {
                               key: const ValueKey('copy-legacy-to-sdr'),
                               onPressed: () => setState(() {
                                 for (final entry in legacy.entries) {
-                                  if (entry.key != 'pictureMode' &&
+                                  if (sdrPicture(entry.key) &&
+                                      entry.key != 'pictureMode' &&
                                       widget.model.feature(
                                             entry.key,
                                           )?['Automatic'] ==
@@ -228,6 +237,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
               return;
             }
             if ((draft['Values'] as Json).isEmpty &&
+                !(draft['HdrValues'] as Json).keys.any(hdrProfile) &&
                 draft['HdrPreset'] == null &&
                 draft['HdrPolicy'] == -1) {
               setState(() => error = '请至少选择一个参数或指定 HDR 策略');
@@ -255,7 +265,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
             value: included,
             onChanged: (v) => setState(() {
               if (v == true) {
-                bank[id] = !widget.model.activeHdr
+                bank[id] = !widget.model.activeHdr || hdrProfile(id)
                     ? widget.model.confirmed(id) ?? 0
                     : 0;
               } else {
@@ -267,6 +277,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
           Expanded(
             child: choices != null
                 ? DesktopSelect<int>(
+                    key: ValueKey('profile-value-$id'),
                     borderRadius: BorderRadius.circular(12),
                     initialValue: choices.any((c) => c['Value'] == value)
                         ? value

@@ -64,11 +64,17 @@ try:
     call('apply', {'id': 'daily'})
     state = call('state'); check(not state['hdr']['ActiveHdr'] and state['values']['brightness']['Value'] == 50, 'profile HDR policy and correct SDR bank')
     check(state['hdrPresetRequest'] is None, 'leaving HDR clears the session request label')
-    old = json.loads(json.dumps(settings)); old['Profiles'][1]['HdrValues'] = {'brightness':80, 'contrast':50, 'pictureMode':9}
+    old = json.loads(json.dumps(settings)); old['Profiles'][1]['HdrValues'] = {'brightness':80, 'contrast':50, 'pictureMode':9,'crosshair':3,'refreshOverlay':1,'freeSync':1,'volume':42}
     old['Profiles'][1]['HdrPreset'] = 2
     check(call('settings', old)['Profiles'][1]['HdrValues']['brightness'] == 80, 'legacy data preserved when loading settings')
     state = call('apply', {'id':'game'})
-    check(state['hdrPresetRequest']['Value'] == 2 and not set(sdr_only).intersection(state['values']), 'HDR profile applies preset only; legacy E7 and brightness are never copied')
+    check(state['hdrPresetRequest']['Value'] == 2 and not set(sdr_only).intersection(state['values']), 'HDR profile applies preset without legacy E7 or brightness')
+    check(all(state['values'][k]['Value']==v for k,v in {'crosshair':3,'refreshOverlay':1,'freeSync':1,'volume':42}.items()), 'HDR preset and independent profile controls both apply')
+    old['Profiles'][1]['HdrPreset'] = None
+    old['Profiles'][1]['HdrValues']['crosshair'] = 4
+    call('settings', old)
+    state = call('apply', {'id':'game'})
+    check(state['values']['crosshair']['Value']==4, 'HDR profile applies crosshair with Keep Current Preset')
     call('apply', {'id':'daily'})
     call('settings', settings)
     invalid = json.loads(json.dumps(settings)); invalid['Profiles'][0]['HdrPreset'] = 5

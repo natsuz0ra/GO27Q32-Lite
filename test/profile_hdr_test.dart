@@ -7,7 +7,62 @@ import 'support.dart';
 
 void main() {
   testWidgets(
-    'HDR editor saves only an explicit preset, never shadow readings',
+    'existing HDR crosshair can be edited without a preset or SDR values',
+    (t) async {
+      final fake = FakeTransport();
+      fake.state['hdr']['Enabled'] = true;
+      fake.state['hdr']['ActiveHdr'] = true;
+      final m = ControlModel(fake);
+      await m.initialize(polling: false);
+      final existing = <String, dynamic>{
+        'Id': 'cod',
+        'Name': 'COD',
+        'MonitorId': m.monitorId,
+        'HdrPolicy': -1,
+        'HdrPreset': null,
+        'Values': <String, dynamic>{},
+        'HdrValues': <String, dynamic>{'crosshair': 2, 'brightness': 80},
+      };
+      Json? result;
+      await t.binding.setSurfaceSize(const Size(1100, 900));
+      await t.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async => result = await showDialog<Json>(
+                  context: context,
+                  builder: (_) => ProfileEditor(model: m, existing: existing),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await t.tap(find.text('open'));
+      await t.pumpAndSettle();
+      final crosshair = find.byKey(const ValueKey('profile-value-crosshair'));
+      await t.ensureVisible(crosshair);
+      await t.pumpAndSettle();
+      await t.tap(crosshair);
+      await t.pumpAndSettle();
+      await t.tap(find.text('准星 3'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('保存配置'));
+      await t.pumpAndSettle();
+      expect(result!['HdrValues'], {'crosshair': 3, 'brightness': 80});
+      expect(result!['Values'], isEmpty);
+      expect(result!['HdrPreset'], isNull);
+      expect(fake.calls, ['init']);
+      await t.pumpWidget(const SizedBox.shrink());
+      m.dispose();
+      await t.binding.setSurfaceSize(null);
+    },
+  );
+  testWidgets(
+    'HDR editor captures independent controls, never shadow picture readings',
     (t) async {
       final fake = FakeTransport();
       fake.state['hdr']['Enabled'] = true;
@@ -35,8 +90,9 @@ void main() {
       );
       await t.tap(find.text('open'));
       await t.pumpAndSettle();
-      expect(find.byType(Slider), findsNothing);
-      expect(find.byType(Checkbox), findsNothing);
+      expect(find.byType(Checkbox), findsWidgets);
+      expect(find.text('亮度'), findsNothing);
+      expect(find.text('准星'), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('profile-hdr-preset')));
       await t.pumpAndSettle();
       await t.tap(find.text('HDR电影'));
@@ -44,9 +100,10 @@ void main() {
       await t.tap(find.text('保存配置'));
       await t.pumpAndSettle();
       expect(result!['HdrPreset'], 2);
-    expect(result!['HdrPolicy'], 1);
+      expect(result!['HdrPolicy'], 1);
       expect(result!['Values'], isEmpty);
-      expect(result!['HdrValues'], isEmpty);
+      expect((result!['HdrValues'] as Json).keys.every(hdrProfile), isTrue);
+      expect(result!['HdrValues']['crosshair'], m.confirmed('crosshair'));
       expect(fake.calls, ['init']);
       expect(m.blocked('brightness'), isNotNull);
       m.stage('brightness', 99);
@@ -93,12 +150,12 @@ void main() {
       );
       await t.tap(find.text('open'));
       await t.pumpAndSettle();
-      expect(find.byType(Slider), findsNothing);
+      expect(find.text('亮度'), findsNothing);
       await t.tap(find.text('SDR 参数'));
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('copy-legacy-to-sdr')));
       await t.pumpAndSettle();
-      await t.tap(find.text('HDR 预设'));
+      await t.tap(find.text('HDR 设置'));
       await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('profile-hdr-preset')));
       await t.pumpAndSettle();

@@ -522,6 +522,16 @@ const enMessages = <String, String>{
       'The HDR sample limit of 100 was reached. Back up the file first.',
   'HDRPeak 1300': 'HDR Peak 1300',
   'HDR 预设': 'HDR Preset',
+  'HDR 设置': 'HDR Settings',
+  'HDR 支持预设与独立功能，亮度、对比度等常规参数不可用。':
+      'HDR supports presets and independent controls. Regular picture settings such as brightness and contrast are unavailable.',
+  'HDR 独立功能 {0} 项': 'HDR independent controls: {0}',
+  '两组参数分别保存。HDR 支持预设及独立功能，编辑配置不会立即写入显示器。':
+      'Settings are saved separately for each output mode. HDR supports presets and independent controls. Editing does not change the monitor.',
+  '查看系统 HDR 请求与实际输出，分别管理画面参数、HDR 预设和独立功能。':
+      'View the Windows HDR request and actual output, and manage picture settings, HDR presets, and independent controls.',
+  'HDR 下常规画面参数不可用，准星等独立功能仍可配置':
+      'Regular picture settings are unavailable in HDR. Independent controls such as crosshair remain configurable.',
   '查看系统 HDR 请求与实际输出，SDR 保存常规参数，HDR 仅选择预设。':
       'View requested and active HDR states. SDR saves picture settings; HDR selects a preset only.',
   'HDR 下不可用': 'Unavailable in HDR',

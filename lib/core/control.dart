@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../l10n.dart';
 
 typedef Json = Map<String, dynamic>;
+const hdrProfileIds = ['crosshair', 'refreshOverlay', 'freeSync', 'volume'];
+bool hdrProfile(String id) => hdrProfileIds.contains(id);
 bool sdrPicture(String id) => const {
   'brightness',
   'contrast',

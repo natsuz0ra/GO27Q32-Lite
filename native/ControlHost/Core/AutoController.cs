@@ -85,6 +85,7 @@ public sealed class AutoController
             if (mode)
             {
                 if (selected?.HdrPreset is uint preset) await SendPreset(preset);
+                await ApplyHdrControls(selected);
             }
             else
             {
@@ -136,12 +137,11 @@ public sealed class AutoController
     }
     private async Task Capture(bool mode)
     {
-        if (mode) { baselines[true] = []; return; }
         if (!baselines.ContainsKey(mode))
         {
             var values = await target.ReadAsync();
             uint? pictureMode = values.TryGetValue("pictureMode", out uint value) ? value : null;
-            baselines[mode] = values.Where(p => Features.Get(p.Key).Automatic && Features.BlockReason(p.Key, pictureMode, mode) is null).ToDictionary();
+            baselines[mode] = values.Where(p => Features.Get(p.Key).Automatic && (!mode || Features.HdrProfile(p.Key)) && Features.BlockReason(p.Key, pictureMode, mode) is null).ToDictionary();
         }
     }
     private async Task Restore()
@@ -157,6 +157,8 @@ public sealed class AutoController
         if (desired)
         {
             if (presetTouched && fallback?.HdrPreset is uint preset) await SendPreset(preset);
+            await Capture(true);
+            await ApplyHdrControls(fallback);
         }
         else
         {
@@ -166,6 +168,21 @@ public sealed class AutoController
             await target.ApplyAsync(restored);
         }
         changed = false;
+    }
+    private async Task ApplyHdrControls(Profile? selected)
+    {
+        var values = new Dictionary<string, uint>(baselines[true]);
+        var requested = selected?.ForMode(true) ?? [];
+        if (requested.Count > 0)
+        {
+            var readable = await target.ReadAsync();
+            foreach (var pair in requested)
+            {
+                if (!readable.ContainsKey(pair.Key)) throw new IOException("当前模式无法读取配置参数：" + pair.Key);
+                values[pair.Key] = pair.Value;
+            }
+        }
+        if (values.Count > 0) await target.ApplyAsync(values);
     }
     private void CheckPresetReturn()
     {

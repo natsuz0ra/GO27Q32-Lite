@@ -241,27 +241,31 @@ void main() {
     m.dispose();
     await tester.binding.setSurfaceSize(null);
   });
-  testWidgets('HDR editor has presets only in Chinese and English', (
-    tester,
-  ) async {
-    final m = await model();
-    await m.command('hdr', {'enabled': true});
-    for (final language in ['zh', 'en']) {
-      await m.preference('Language', language);
-      await host(
-        tester,
-        m,
-        language: language,
-        child: Scaffold(body: ProfileEditor(model: m)),
-      );
-      expect(find.byType(Slider), findsNothing);
-      expect(find.byType(Checkbox), findsNothing);
-      await capture(tester, 'profile-hdr-$language');
-    }
-    await tester.pumpWidget(const SizedBox.shrink());
-    m.dispose();
-    await tester.binding.setSurfaceSize(null);
-  });
+  testWidgets(
+    'HDR editor has presets and independent controls in Chinese and English',
+    (tester) async {
+      final m = await model();
+      await m.command('hdr', {'enabled': true});
+      for (final language in ['zh', 'en']) {
+        await m.preference('Language', language);
+        await host(
+          tester,
+          m,
+          language: language,
+          child: Scaffold(body: ProfileEditor(model: m)),
+        );
+        expect(
+          find.byKey(const ValueKey('profile-value-crosshair')),
+          findsOneWidget,
+        );
+        expect(find.text(language == 'en' ? 'Brightness' : '亮度'), findsNothing);
+        await capture(tester, 'profile-hdr-$language');
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+      m.dispose();
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
   testWidgets('HDR preset command card in Chinese and English', (tester) async {
     final m = await model();
     await m.command('hdr', {'enabled': true});

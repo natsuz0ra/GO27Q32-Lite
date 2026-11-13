@@ -140,7 +140,8 @@ sealed class ControlHost(bool demo) : IDisposable
                 if (StableHdr() != desired) await SetHdr(desired);
                 var fields = profile.ForMode(desired);
                 if (desired && profile.HdrPreset is uint configuredPreset) await ApplyHdrPresetRequest(configuredPreset);
-                else if (demo) foreach (var p in fields) values[p.Key] = new(p.Value, Features.Get(p.Key).Max);
+                if (hdrPresetRecovering) throw new IOException("HDR 预设切换尚未确认，自动切换已暂停，请等待显示器恢复。");
+                if (demo) foreach (var p in fields) values[p.Key] = new(p.Value, Features.Get(p.Key).Max);
                 else { if (fields.Count > 0) await service.ApplyAsync(Current, fields, false); await Read(); }
                 activeProfile = profile.Id; dirty = false; undo = null; if (!hdrPresetRecovering) status = "已使用「" + profile.Name + "」。"; return State();
             case "undo":

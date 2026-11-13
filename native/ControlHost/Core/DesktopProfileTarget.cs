@@ -21,12 +21,11 @@ internal sealed class DesktopProfileTarget(MonitorService service, MonitorDevice
     public async Task<Dictionary<string, uint>> ReadAsync()
     {
         bool hdr = await GetHdrAsync();
-        if (hdr) return []; // Never capture SDR-shadow readings as an HDR baseline.
-        var snapshot = await service.ReadAllAsync(Current);
+        var snapshot = await service.ReadAllAsync(Current, hdr);
         if (await GetHdrAsync() != hdr) throw new IOException("读取配置期间 SDR/HDR 改变，请等待模式稳定。");
-        if (!snapshot.Keys.Any(id => Features.Get(id).Automatic && id != "pictureMode"))
+        if (!hdr && !snapshot.Keys.Any(id => Features.Get(id).Automatic && id != "pictureMode"))
             throw new IOException("未能读取任何画面参数，暂不启动或切换应用配置。");
-        return snapshot.Where(p => Features.Get(p.Key).Automatic && (!hdr || p.Key != "pictureMode")).ToDictionary(p => p.Key, p => p.Value.Value);
+        return snapshot.Where(p => Features.Get(p.Key).Automatic && (!hdr || Features.HdrProfile(p.Key))).ToDictionary(p => p.Key, p => p.Value.Value);
     }
     public Task ApplyAsync(Dictionary<string, uint> values) => service.ApplyAsync(Current, values, true);
     public async Task SetHdrPresetAsync(uint value)

@@ -122,6 +122,32 @@ await sdrReturnEngine.StartAsync(); await Twice(sdrReturnEngine, @"C:\Games\game
 Check(!sdrReturnTarget.Hdr && sdrReturnTarget.Values["contrast"] == 37 && sdrReturnTarget.RegularHdrWrites == 0, "从 HDR 启动也可明确返回 SDR 桌面，常规参数只在 SDR 后写入");
 Check(p.ForMode(true).Count == 0 && p.HdrValues["brightness"] == 70, "旧 HDR 参数保留用于导出，但运行时永远不套用");
 var legacy = JsonSerializer.Deserialize<Settings>("{\"Version\":1,\"Profiles\":[],\"Rules\":[],\"Automatic\":false}")!;
+var hdrCod = new Profile { Id = "cod", MonitorId = "go", HdrPolicy = 1, HdrValues = new() { ["crosshair"] = 3, ["volume"] = 42, ["brightness"] = 80 } };
+var hdrOther = new Profile { Id = "other", MonitorId = "go", HdrPolicy = 1, HdrValues = new() { ["crosshair"] = 4 } };
+var hdrControlsSettings = new Settings { Profiles = [hdrCod, hdrOther], Rules = [new() { ExecutablePath = @"C:\cod.exe", ProfileId = "cod", Priority = 1 }, new() { ExecutablePath = @"C:\other.exe", ProfileId = "other", Priority = 2 }] };
+var hdrControlsTarget = new FakeTarget { Hdr = true };
+hdrControlsTarget.Values["crosshair"] = 0; hdrControlsTarget.Values["volume"] = 10;
+var hdrControlsEngine = new AutoController(hdrControlsTarget, hdrControlsSettings);
+await hdrControlsEngine.StartAsync(); await Twice(hdrControlsEngine, @"C:\cod.exe");
+Check(hdrControlsTarget.Values["crosshair"] == 3 && hdrControlsTarget.Values["volume"] == 42 && hdrControlsTarget.RegularHdrWrites == 0 && hdrControlsTarget.PresetWrites.Count == 0, "HDR 应用配置可只开准星及音量，不要求切换预设，不写旧亮度");
+await Twice(hdrControlsEngine, @"C:\cod.exe", @"C:\other.exe");
+Check(hdrControlsTarget.Values["crosshair"] == 4 && hdrControlsTarget.Values["volume"] == 10, "高优先级 HDR 应用接管准星，未设置的独立功能恢复基线");
+await Twice(hdrControlsEngine, @"C:\cod.exe"); await Twice(hdrControlsEngine);
+Check(hdrControlsTarget.Values["crosshair"] == 0 && hdrControlsTarget.Values["volume"] == 10 && hdrControlsTarget.RegularHdrWrites == 0, "应用全部退出后恢复 HDR 准星与音量，基线不会被重复采集覆盖");
+await Twice(hdrControlsEngine, @"C:\cod.exe"); await hdrControlsEngine.StopAsync();
+Check(hdrControlsTarget.Values["crosshair"] == 0 && hdrControlsTarget.Values["volume"] == 10, "停止 HDR 自动管理也恢复独立功能");
+hdrControlsTarget = new FakeTarget { Hdr = true }; hdrControlsTarget.Values["crosshair"] = 0; hdrControlsTarget.Values["volume"] = 10;
+hdrControlsEngine = new AutoController(hdrControlsTarget, hdrControlsSettings); await hdrControlsEngine.StartAsync(); hdrControlsTarget.FailNext = true;
+try { await Twice(hdrControlsEngine, @"C:\cod.exe"); } catch (IOException) { }
+Check(!hdrControlsEngine.Running && hdrControlsTarget.Values["crosshair"] == 0 && hdrControlsTarget.RegularHdrWrites == 0, "HDR 独立功能部分写入失败后停止规则并恢复基线");
+var hdrPresetControlsSettings = hdrControlsSettings.Clone(); hdrPresetControlsSettings.Profiles[0].HdrPreset = 1;
+hdrPresetControlsSettings.Profiles.Add(new Profile { Id = "return", MonitorId = "go", HdrPolicy = 1, HdrPreset = 0 }); hdrPresetControlsSettings.DefaultProfiles["go"] = "return";
+hdrControlsTarget = new FakeTarget { Hdr = true, ResetCrosshairOnPreset = true }; hdrControlsTarget.Values["crosshair"] = 0; hdrControlsTarget.Values["volume"] = 10;
+hdrControlsEngine = new AutoController(hdrControlsTarget, hdrPresetControlsSettings); await hdrControlsEngine.StartAsync(); await Twice(hdrControlsEngine, @"C:\cod.exe");
+Check(hdrControlsTarget.CurrentPreset == 1 && hdrControlsTarget.Values["crosshair"] == 3, "先完成 HDR 预设切换，再应用准星，避免预设重置独立功能");
+await Twice(hdrControlsEngine);
+Check(hdrControlsTarget.CurrentPreset == 0 && hdrControlsTarget.Values["crosshair"] == 0, "返回 HDR 桌面预设后恢复独立功能");
+Check(hdrCod.ForMode(true).Count == 2 && hdrCod.HdrValues["brightness"] == 80 && !Features.HdrProfile("input") && !Features.HdrProfile("timerDuration"), "HDR 配置只放行四项已支持独立功能，不放行未知画面参数或设备命令");
 SettingsStore.Validate(legacy);
 Check(legacy.DefaultProfiles.Count == 0 && legacy.MinimizeToTray && legacy.Theme == "system", "旧版配置自动使用兼容的新增偏好默认值");
 Check(legacy.LiveSync, "旧版配置默认开启实时同步，新字段不破坏兼容");
@@ -216,8 +242,15 @@ if (OperatingSystem.IsWindows())
         Check(target.Values["brightness"] == 81 && control.CurrentProfileId == "watch", "真实进程启动通过检测器触发配置，使用模拟显示器");
         var denied = ProcessSnapshot.Capture(config.Rules, _ => throw new System.ComponentModel.Win32Exception(5));
         Check(!denied.Reliable && denied.Unreadable.Contains(Path.GetFileName(watcher)) && denied.Paths.Count == 0, "受限进程显式报告未知状态，不冒充退出或按名称猜测匹配");
+        var hdrWatchProfile = new Profile { Id = "hdr-watch", MonitorId = "go", HdrPolicy = 1, HdrValues = new() { ["crosshair"] = 3 } };
+        var hdrWatchTarget = new FakeTarget { Hdr = true }; hdrWatchTarget.Values["crosshair"] = 0;
+        var hdrWatchEngine = new AutoController(hdrWatchTarget, new Settings { Profiles = [hdrWatchProfile], Rules = [new() { ExecutablePath = watcher, ProfileId = hdrWatchProfile.Id }] });
+        await hdrWatchEngine.StartAsync(); await Twice(hdrWatchEngine, snapshot.Paths.ToArray());
+        Check(hdrWatchTarget.Values["crosshair"] == 3, "真实进程检测在 HDR 下触发准星配置，使用模拟显示器");
         child.Kill(true); await child.WaitForExitAsync();
         snapshot = ProcessSnapshot.Capture(config.Rules);
+        await Twice(hdrWatchEngine, snapshot.Paths.ToArray());
+        Check(hdrWatchTarget.Values["crosshair"] == 0, "真实进程退出后 HDR 准星恢复关闭");
         await control.TickAsync(snapshot.Paths, null); await control.TickAsync(snapshot.Paths, null);
         Check(snapshot.Reliable && target.Values["brightness"] == 50 && control.CurrentProfileId is null, "真实测试进程退出后恢复模拟显示器的原始配置");
     }
@@ -237,6 +270,7 @@ sealed class FakeTarget : IProfileTarget
     public int HdrSwitches;
     public bool FailNext;
     public bool FailPreset;
+    public bool ResetCrosshairOnPreset;
     public uint CurrentPreset;
     public int RegularHdrWrites;
     public List<uint> PresetWrites = [];
@@ -245,12 +279,12 @@ sealed class FakeTarget : IProfileTarget
     public Dictionary<string, uint> Values => Banks[Hdr];
     public Task<bool> GetHdrAsync() => Task.FromResult(Hdr);
     public Task SetHdrAsync(bool enabled) { Hdr = enabled; Writes++; HdrSwitches++; return Task.CompletedTask; }
-    public Task<Dictionary<string, uint>> ReadAsync() => Task.FromResult(Hdr ? new Dictionary<string, uint>() : new Dictionary<string, uint>(Values));
-    public Task SetHdrPresetAsync(uint value) { HdrPresets.Validate(value); PresetWrites.Add(value); Writes++; if (FailPreset) { FailPreset = false; throw new IOException("preset reconnect failed"); } CurrentPreset = value; return Task.CompletedTask; }
+    public Task<Dictionary<string, uint>> ReadAsync() => Task.FromResult(Values.Where(p => !Hdr || Features.HdrProfile(p.Key)).ToDictionary());
+    public Task SetHdrPresetAsync(uint value) { HdrPresets.Validate(value); PresetWrites.Add(value); Writes++; if (FailPreset) { FailPreset = false; throw new IOException("preset reconnect failed"); } if (ResetCrosshairOnPreset) Values["crosshair"] = 0; CurrentPreset = value; return Task.CompletedTask; }
     public Task ApplyAsync(Dictionary<string, uint> values)
     {
         LastApplied = new(values);
-        if (Hdr) RegularHdrWrites += values.Count;
+        if (Hdr) RegularHdrWrites += values.Count(p => !Features.HdrProfile(p.Key));
         foreach (var p in values)
         {
             Values[p.Key] = p.Value; Writes++;

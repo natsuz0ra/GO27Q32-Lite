@@ -21,7 +21,7 @@ For a portable copy, extract `windows-x64.zip` and run `go27q32_lite.exe`. Keep 
 - Brightness, contrast, SDR Picture Mode, Gamma, Color Temperature, Sharpness, Black eQualizer, Color Vibrance, Low Blue Light, Super Resolution, and Overdrive.
 - Crosshair, refresh rate display, FreeSync, count-up/countdown timer, pause/resume, and six Game Assist positions.
 - Windows HDR for the selected GO27Q32, with requested and actual output states shown separately.
-- Profiles with SDR picture settings, an HDR preset, and a Keep/On/Off Windows HDR policy; profile import and export.
+- Profiles with SDR picture settings, HDR presets and independent controls, and a Keep/On/Off Windows HDR policy; profile import and export.
 - Application rules matched by full executable path, priorities, and desktop profile restoration.
 - Input source, volume, OSD timeout/transparency, LED Indicator, and joystick shortcuts.
 - Tray controls, startup settings, external OSD/HDR synchronization, light/dark/system themes, and Chinese/English UI.
@@ -47,11 +47,11 @@ Writes are restricted to a uniquely identified GO27Q32 with hardware ID `GBT2761
 
 Windows HDR control supports Windows 10 1709–22H2 and Windows 11 build 26100 or later. It remains disabled on earlier Windows 11 builds. Available picture controls in HDR depend on the monitor's reported capabilities.
 
-Switch between HDR Display, HDR Game, HDR Movie, HDR Vivid, and HDR Peak 1300 on the HDR Status page, or select a preset in a saved profile for application rules. Manually switching Windows HDR or a preset pauses application rules without changing saved profiles. The current preset cannot be read back; check the monitor OSD. If automation starts while HDR is active, specify a desktop default that selects a return preset or disables HDR.
+Switch between HDR Display, HDR Game, HDR Movie, HDR Vivid, and HDR Peak 1300 on the HDR Status page, or select a preset in a saved profile for application rules. Manually switching Windows HDR or a preset pauses application rules without changing saved profiles. The current preset cannot be read back; check the monitor OSD. If automation starts in HDR and rules will switch presets, specify a desktop default that selects a return preset or disables HDR. Rules that only change independent controls such as crosshair do not need a return preset.
 
 Switching between HDR Display and another preset may briefly blank the screen. The app waits for the original display to reconnect, shows a switching message, and pauses other hardware operations. It does not resend the preset command.
 
-A successful readback in HDR does not establish a picture change. Writing brightness 99 to `0x10` returned 99 while the HDR OSD remained at 100. Regular picture controls are disabled in HDR; HDR profiles select a preset only. Legacy `HdrValues` data is preserved but never applied. The editor can copy it manually to SDR without replacing existing SDR values.
+A successful readback in HDR does not establish a picture change. Writing brightness 99 to `0x10` returned 99 while the HDR OSD remained at 100. Regular picture controls remain disabled in HDR. HDR profiles support presets, crosshair, refresh rate display, FreeSync, and headphone volume. Application rules can change these independent controls while keeping the current preset. Corresponding controls in legacy `HdrValues` continue to apply; legacy picture settings are preserved but not applied, and can be copied manually to SDR.
 
 Avoid letting GCC, OSD Sidekick, and this app automatically adjust the same monitor at the same time. Release binaries are unsigned; Windows may show an unknown-publisher prompt.
 
